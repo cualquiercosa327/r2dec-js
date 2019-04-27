@@ -88,12 +88,12 @@ module.exports = (function() {
 		, {
 			op: JIR.ShiftLeft,
 			fcn: function(a, b, r) {
-				return b.arg1 instanceof Imm ? a.shiftLeft(b.arg1).and(bigInt["mask" + r.size]) : a;
+				return b.arg1 instanceof Imm || typeof b.arg1 == "number" ? a.shiftLeft(b.arg1).and(bigInt["mask" + r.size]) : a;
 			}
 		}, {
 			op: JIR.ShiftRight,
 			fcn: function(a, b) {
-				return b.arg1 instanceof Imm ? a.shiftRight(b.arg1) : a;
+				return b.arg1 instanceof Imm || typeof b.arg1 == "number" ? a.shiftRight(b.arg1) : a;
 			}
 		}, {
 			op: JIR.Subtract,
@@ -121,6 +121,12 @@ module.exports = (function() {
 		return op[name] ? op[name].name : null;
 	}
 
+	function _xored_assigned(op) {
+		var target =  _regName(op, 'target');
+		var arg0 =  _regName(op, 'arg0');
+		var arg1 =  _regName(op, 'arg1');
+		return op instanceof JIR.Xor && target == arg0 && target == arg1;
+	}
 
 	function _solve_math(ir, registers) {
 		var i, m, reginfo, key;
@@ -131,6 +137,8 @@ module.exports = (function() {
 				registers[_regName(ir[i], 'arg0')] ||
 				registers[_regName(ir[i], 'arg1')] ||
 				registers[_regName(ir[i], 'arg2')];
+			//console.log(ir[i].toString(), ir[i] instanceof JIR.Call)
+			//console.log(ir[i].toString());
 			if (ir[i] instanceof JIR.Call || ir[i] instanceof JIR.Return) {
 				for (key in registers) {
 					reginfo = registers[key];
@@ -140,37 +148,46 @@ module.exports = (function() {
 					reginfo.added = true;
 					new_ir.push(new JIR.Assign(reginfo.register, new Imm(reginfo.value)));
 					//console.log("################################");
-					//console.log("    Call/Ret", new_ir[new_ir.length - 1].toString());
+					//console.log("	Call/Ret", new_ir[new_ir.length - 1].toString());
 					//console.log("################################");
 				}
-			} else if (registers[_regName(ir[i], 'target')]) {
+			} else if (_regName(ir[i], 'target') != (registers[_regName(ir[i], 'arg2')] || _regName(ir[i], 'arg1') || _regName(ir[i], 'arg0')) &&
+				registers[_regName(ir[i], 'arg1')]) {
 				if (!reginfo.added) {
 					reginfo.added = true;
 					new_ir.push(new JIR.Assign(reginfo.register, new Imm(reginfo.value)));
 					//console.log("################################");
-					//console.log("    Assign", new_ir[new_ir.length - 1].toString());
+					//console.log("	Assign", new_ir[new_ir.length - 1].toString());
 					//console.log("################################");
 				}
 			}
 			if (ir[i] instanceof JIR.Assign && ir[i].arg0 instanceof Imm) {
 				//console.log("################################");
-				//console.log("    Added", ir[i].toString());
+				//console.log("	Added", ir[i].toString());
 				//console.log("################################");
-				registers[ir[i].target.name] = {
+				registers[_regName(ir[i], 'target')] = {
 					added: false,
 					register: ir[i].target,
 					value: bigInt(ir[i].arg0.value)
+				};
+			} else if (_xored_assigned(ir[i])) {
+				console.log("################################");
+				console.log("	Added", ir[i].toString());
+				console.log("################################");
+				registers[_regName(ir[i], 'target')] = {
+					added: false,
+					register: ir[i].target,
+					value: bigInt.zero
 				};
 			} else {
 				reginfo = registers[_regName(ir[i], 'target')];
 				if ((m = _math_solver(ir[i], registers)) != null) {
 					//console.log("++++++++++++++++++++++++++++++++");
-					//console.log("    Math", ir[i].toString());
-					//console.log("       ", reginfo.value, " -> ", m(reginfo.value, ir[i], reginfo.register));
+					//console.log("	Math", ir[i].toString());
+					//console.log("	   ", reginfo.value, " -> ", m(reginfo.value, ir[i], reginfo.register));
 					//console.log("++++++++++++++++++++++++++++++++");
 					reginfo.value = m(reginfo.value, ir[i], reginfo.register);
 				} else {
-					//console.log(ir[i].toString());
 					new_ir.push(ir[i]);
 				}
 			}
@@ -183,12 +200,12 @@ module.exports = (function() {
 			reginfo.added = true;
 			new_ir.push(new JIR.Assign(reginfo.register, new Imm(reginfo.value)));
 			//console.log("################################");
-			//console.log("    Jump", new_ir[new_ir.length - 1].toString());
+			//console.log("	Jump", new_ir[new_ir.length - 1].toString());
 			//console.log("################################");
 		}
 		//console.log("--------------------------------");
 		//new_ir.forEach(function(op) {
-		//	console.log("    " + op);
+		//	console.log("	" + op);
 		//});
 		//console.log("--------------------------------");
 		return new_ir;

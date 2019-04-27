@@ -491,8 +491,21 @@ module.exports = (function() {
 		movabs: _standard_mov,
 		lea: function(instr) {
 			var ops = [];
-			var val = _multi_math(instr.opd[1], ops);
-			ops.push(new JIR.Assign(registers[instr.opd[0].token], val));
+			var reg_a, reg_b, value;
+			var math = instr.opd[1].token.replace(/([+*-])/g, ' $1 ').replace(/\s+/g, ' ').split(' ');
+			if (math.length > 2) {
+				reg_a = registers[math[0]] || Imm.from(math[0]);
+				reg_b = registers[math[2]] || Imm.from(math[2]);
+				value = registers[instr.opd[0].token];
+				ops.push(new math_ops[math[1]](value, reg_a, reg_b));
+				if (math.length > 3) {
+					reg_b = registers[math[4]] || Imm.from(math[4]);
+					ops.push(new math_ops[math[3]](value, value, reg_b));
+				}
+			} else {
+				value = registers[instr.opd[1].token.token] || Imm.from(instr.opd[1].token.token);
+				ops.push(new JIR.Assign(registers[instr.opd[0].token], value));
+			}
 			return ops;
 		},
 		/*

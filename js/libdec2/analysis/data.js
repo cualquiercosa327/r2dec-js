@@ -73,6 +73,9 @@ module.exports = (function() {
                     added: true,
                     value: r2.bigint("dr " + reg.name, bigInt.zero)
                 };
+                if (regs[reg.name].value.eq(bigInt.zero)) {
+                    delete regs[reg.name]
+                }
             });
         }
         for (var i = 0; i < this.blocks.length; i++) {

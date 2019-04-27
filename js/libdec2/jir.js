@@ -253,7 +253,7 @@ module.exports = (function() {
 		TNExpr.call(this, Read, arguments[0], arguments[1], arguments[2]);
 	}
 
-	/* target = write(arg0, arg1); // arg1 is n of bits to write */
+	/* write(target, arg0, arg1); // arg1 is n of bits to write */
 	function Write() {
 		TNExpr.call(this, Write, arguments[0], arguments[1], arguments[2]);
 	}
